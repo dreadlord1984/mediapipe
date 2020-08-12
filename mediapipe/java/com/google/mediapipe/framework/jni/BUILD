@@ -73,9 +73,6 @@ cc_library(
         ],
         "//mediapipe/gpu:disable_gpu": [],
     }),
-    copts = [
-        "-DDISABLE_GOOGLE_GLOBAL_USING_DECLARATIONS",  # b/33667913
-    ],
     linkopts = select({
         "//conditions:default": [],
         "//mediapipe:android": [
@@ -85,13 +82,16 @@ cc_library(
     }),
     visibility = ["//visibility:public"],
     deps = [
+        ":class_registry",
         ":jni_util",
         "//mediapipe/framework:calculator_framework",
         "//mediapipe/framework:calculator_profile_cc_proto",
+        "//mediapipe/framework/tool:calculator_graph_template_cc_proto",
         "//mediapipe/framework/formats:image_format_cc_proto",
         "//mediapipe/framework/formats:matrix_data_cc_proto",
         "//mediapipe/framework/formats:time_series_header_cc_proto",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
         "@eigen_archive//:eigen",
         "//mediapipe/framework:camera_intrinsics",
@@ -122,7 +122,9 @@ cc_library(
             "//mediapipe/gpu:gpu_shared_data_internal",
             "//mediapipe/gpu:graph_support",
         ],
-        "//mediapipe/gpu:disable_gpu": [],
+        "//mediapipe/gpu:disable_gpu": [
+            "//mediapipe/gpu:gpu_shared_data_internal",
+        ],
     }),
     alwayslink = 1,
 )
@@ -132,7 +134,44 @@ cc_library(
     srcs = (["jni_util.cc"]),
     hdrs = (["jni_util.h"]),
     deps = [
+        ":class_registry",
         "@com_google_absl//absl/synchronization",
+        "//mediapipe/framework/port:logging",
+        "//mediapipe/framework/port:status",
+    ] + select({
+        "//conditions:default": [
+        ],
+        "//mediapipe:android": [
+        ],
+    }),
+)
+
+cc_library(
+    name = "class_registry",
+    srcs = (["class_registry.cc"]),
+    hdrs = (["class_registry.h"]),
+    deps = [
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/container:node_hash_map",
+    ] + select({
+        "//conditions:default": [
+        ],
+        "//mediapipe:android": [
+        ],
+    }),
+)
+
+cc_library(
+    name = "register_natives",
+    srcs = (["register_natives.cc"]),
+    hdrs = (["register_natives.h"]),
+    deps = [
+        ":class_registry",
+        ":mediapipe_framework_jni",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/container:node_hash_map",
         "//mediapipe/framework/port:logging",
     ] + select({
         "//conditions:default": [

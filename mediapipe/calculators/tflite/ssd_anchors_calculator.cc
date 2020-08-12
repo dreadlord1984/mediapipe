@@ -26,8 +26,12 @@ namespace {
 
 float CalculateScale(float min_scale, float max_scale, int stride_index,
                      int num_strides) {
-  return min_scale +
-         (max_scale - min_scale) * 1.0 * stride_index / (num_strides - 1.0f);
+  if (num_strides == 1) {
+    return (min_scale + max_scale) * 0.5f;
+  } else {
+    return min_scale +
+           (max_scale - min_scale) * 1.0 * stride_index / (num_strides - 1.0f);
+  }
 }
 
 }  // namespace
@@ -73,11 +77,13 @@ class SsdAnchorsCalculator : public CalculatorBase {
   }
 
   ::mediapipe::Status Open(CalculatorContext* cc) override {
+    cc->SetOffset(TimestampDiff(0));
+
     const SsdAnchorsCalculatorOptions& options =
         cc->Options<SsdAnchorsCalculatorOptions>();
 
     auto anchors = absl::make_unique<std::vector<Anchor>>();
-    RETURN_IF_ERROR(GenerateAnchors(anchors.get(), options));
+    MP_RETURN_IF_ERROR(GenerateAnchors(anchors.get(), options));
     cc->OutputSidePackets().Index(0).Set(Adopt(anchors.release()));
     return ::mediapipe::OkStatus();
   }
@@ -112,7 +118,7 @@ REGISTER_CALCULATOR(SsdAnchorsCalculator);
   }
 
   int layer_id = 0;
-  while (layer_id < options.strides_size()) {
+  while (layer_id < options.num_layers()) {
     std::vector<float> anchor_height;
     std::vector<float> anchor_width;
     std::vector<float> aspect_ratios;

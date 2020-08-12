@@ -31,9 +31,9 @@
 
 #ifdef __APPLE__
 #ifdef __OBJC__
-@class MediaPipeGraphGPUData;
+@class MPPGraphGPUData;
 #else
-struct MediaPipeGraphGPUData;
+struct MPPGraphGPUData;
 #endif  // __OBJC__
 #endif  // defined(__APPLE__)
 
@@ -66,10 +66,10 @@ class GpuResources {
   GpuBufferMultiPool& gpu_buffer_pool() { return gpu_buffer_pool_; }
 
 #ifdef __APPLE__
-  MediaPipeGraphGPUData* ios_gpu_data();
-#endif  // defined(__APPLE__)
+  MPPGraphGPUData* ios_gpu_data();
+#endif  // defined(__APPLE__)§
 
-  void PrepareGpuNode(CalculatorNode* node);
+  ::mediapipe::Status PrepareGpuNode(CalculatorNode* node);
 
   // If the node requires custom GPU executors in the current configuration,
   // returns the executor's names and the executors themselves.
@@ -81,7 +81,7 @@ class GpuResources {
   GpuResources() = delete;
   explicit GpuResources(std::shared_ptr<GlContext> gl_context);
 
-  const std::shared_ptr<GlContext>& gl_context(const std::string& key);
+  GlContext::StatusOrGlContext GetOrCreateGlContext(const std::string& key);
   const std::string& ContextKey(const std::string& canonical_node_name);
 
   std::map<std::string, std::string> node_key_;
@@ -93,7 +93,7 @@ class GpuResources {
 
 #ifdef __APPLE__
   // Note that this is an Objective-C object.
-  MediaPipeGraphGPUData* ios_gpu_data_;
+  MPPGraphGPUData* ios_gpu_data_;
 #endif  // defined(__APPLE__)
 
   std::map<std::string, std::shared_ptr<Executor>> named_executors_;
@@ -123,7 +123,7 @@ struct GpuSharedData {
       PlatformGlContext external_context) {
     auto status_or_resources = GpuResources::Create(external_context);
     MEDIAPIPE_CHECK_OK(status_or_resources.status())
-        << "could not create GpuResources";
+        << ": could not create GpuResources";
     return std::move(status_or_resources).ValueOrDie();
   }
 };

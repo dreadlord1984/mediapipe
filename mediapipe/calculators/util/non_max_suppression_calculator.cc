@@ -167,6 +167,8 @@ class NonMaxSuppressionCalculator : public CalculatorBase {
   }
 
   ::mediapipe::Status Open(CalculatorContext* cc) override {
+    cc->SetOffset(TimestampDiff(0));
+
     options_ = cc->Options<NonMaxSuppressionCalculatorOptions>();
     CHECK_GT(options_.num_detection_streams(), 0)
         << "At least one detection stream need to be specified.";
@@ -301,12 +303,12 @@ class NonMaxSuppressionCalculator : public CalculatorBase {
     IndexedScores candidates;
     output_detections->clear();
     while (!remained_indexed_scores.empty()) {
+      const int original_indexed_scores_size = remained_indexed_scores.size();
       const auto& detection = detections[remained_indexed_scores[0].first];
       if (options_.min_score_threshold() > 0 &&
           detection.score(0) < options_.min_score_threshold()) {
         break;
       }
-
       remained.clear();
       candidates.clear();
       const Location location(detection.location_data());
@@ -363,8 +365,15 @@ class NonMaxSuppressionCalculator : public CalculatorBase {
           keypoint->set_y(keypoints[i * 2 + 1] / total_score);
         }
       }
-      remained_indexed_scores = std::move(remained);
+
       output_detections->push_back(weighted_detection);
+      // Breaks the loop if the size of indexed scores doesn't change after an
+      // iteration.
+      if (original_indexed_scores_size == remained.size()) {
+        break;
+      } else {
+        remained_indexed_scores = std::move(remained);
+      }
     }
   }
 

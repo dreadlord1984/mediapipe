@@ -17,6 +17,7 @@ package com.google.mediapipe.framework;
 import com.google.common.base.Preconditions;
 import com.google.common.flogger.FluentLogger;
 import com.google.mediapipe.proto.CalculatorProto.CalculatorGraphConfig;
+import com.google.mediapipe.proto.GraphTemplateProto.CalculatorGraphTemplate;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +35,6 @@ public class Graph {
   private long nativeGraphHandle;
   // Hold the references to callbacks.
   private final List<PacketCallback> packetCallbacks = new ArrayList<>();
-  private final List<PacketWithHeaderCallback> packetWithHeaderCallbacks = new ArrayList<>();
   // Side packets used for running the graph.
   private Map<String, Packet> sidePackets = new HashMap<>();
   // Stream headers used for running the graph.
@@ -101,13 +101,28 @@ public class Graph {
     nativeLoadBinaryGraphBytes(nativeGraphHandle, data);
   }
 
-  /** Loads a binary mediapipe graph from a CalculatorGraphConfig. */
+  /** Specifies a CalculatorGraphConfig for a mediapipe graph or subgraph. */
   public synchronized void loadBinaryGraph(CalculatorGraphConfig config) {
     loadBinaryGraph(config.toByteArray());
   }
 
+  /** Specifies a CalculatorGraphTemplate for a mediapipe graph or subgraph. */
+  public synchronized void loadBinaryGraphTemplate(CalculatorGraphTemplate template) {
+    nativeLoadBinaryGraphTemplate(nativeGraphHandle, template.toByteArray());
+  }
+
+  /** Specifies the CalculatorGraphConfig::type of the top level graph. */
+  public synchronized void setGraphType(String graphType) {
+    nativeSetGraphType(nativeGraphHandle, graphType);
+  }
+
+  /** Specifies options such as template arguments for the graph. */
+  public synchronized void setGraphOptions(CalculatorGraphConfig.Node options) {
+    nativeSetGraphOptions(nativeGraphHandle, options.toByteArray());
+  }
+
   /**
-   * Returns the CalculatorGraphConfig if a graph is loaded.
+   * Returns the canonicalized CalculatorGraphConfig with subgraphs and graph templates expanded.
    */
   public synchronized CalculatorGraphConfig getCalculatorGraphConfig() {
     Preconditions.checkState(
@@ -138,25 +153,6 @@ public class Graph {
     Preconditions.checkState(!graphRunning && !startRunningGraphCalled);
     packetCallbacks.add(callback);
     nativeAddPacketCallback(nativeGraphHandle, streamName, callback);
-  }
-
-  /**
-   * Adds a {@link PacketWithHeaderCallback} to the context for callback during graph running.
-   *
-   * @param streamName The output stream name in the graph for callback.
-   * @param callback The callback for handling the call when output stream gets a {@link Packet} and
-   *     has a stream header.
-   * @throws MediaPipeException for any error status.
-   */
-  public synchronized void addPacketWithHeaderCallback(
-      String streamName, PacketWithHeaderCallback callback) {
-    Preconditions.checkState(
-        nativeGraphHandle != 0, "Invalid context, tearDown() might have been called.");
-    Preconditions.checkNotNull(streamName);
-    Preconditions.checkNotNull(callback);
-    Preconditions.checkState(!graphRunning && !startRunningGraphCalled);
-    packetWithHeaderCallbacks.add(callback);
-    nativeAddPacketWithHeaderCallback(nativeGraphHandle, streamName, callback);
   }
 
   /**
@@ -448,7 +444,6 @@ public class Graph {
       }
     }
     packetCallbacks.clear();
-    packetWithHeaderCallbacks.clear();
   }
 
   /**
@@ -585,14 +580,17 @@ public class Graph {
   private native void nativeAddPacketCallback(
       long context, String streamName, PacketCallback callback);
 
-  private native void nativeAddPacketWithHeaderCallback(
-      long context, String streamName, PacketWithHeaderCallback callback);
-
   private native long nativeAddSurfaceOutput(long context, String streamName);
 
   private native void nativeLoadBinaryGraph(long context, String path);
 
   private native void nativeLoadBinaryGraphBytes(long context, byte[] data);
+
+  private native void nativeLoadBinaryGraphTemplate(long context, byte[] data);
+
+  private native void nativeSetGraphType(long context, String graphType);
+
+  private native void nativeSetGraphOptions(long context, byte[] data);
 
   private native byte[] nativeGetCalculatorGraphConfig(long context);
 
